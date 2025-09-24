@@ -3,221 +3,104 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>JumpQuest — 3D Platformer (HTML + Three.js)</title>
+  <title>JumpQuest 2D — Simple HTML Platformer</title>
   <style>
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
-    #game{width:100vw;height:100vh;display:block;}
-    .hud{position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.45);color:#fff;padding:10px;border-radius:8px}
-    .controls{position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.35);color:#fff;padding:10px;border-radius:8px;text-align:right}
-    button{background:#1e90ff;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+    html,body {margin:0;padding:0;height:100%;background:#87ceeb;overflow:hidden;}
+    canvas {display:block;background:#87ceeb;}
+    .hud {position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.45);color:#fff;padding:8px 12px;border-radius:6px;font-family:sans-serif}
+    .hud span{display:inline-block;min-width:40px;text-align:right}
+    .controls {position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.35);color:#fff;padding:6px 10px;border-radius:6px;font-family:sans-serif}
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
-  <div class="hud">
-    Score: <span id="score">0</span><br>
-    Lives: <span id="lives">3</span>
-  </div>
-  <div class="controls">
-    <div>WASD / Arrow keys — Space to jump</div>
-    <div style="margin-top:8px"><button id="restart">Restart</button></div>
-  </div>
-
-<script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/controls/OrbitControls.js';
-
-// Basic renderer / scene / camera
-const canvas = document.getElementById('game');
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-
-const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
-camera.position.set(0, 8, 12);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.maxPolarAngle = Math.PI/2 - 0.1; controls.target.set(0,2,0);
-
-function onResize(){ renderer.setSize(window.innerWidth, window.innerHeight); camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); }
-window.addEventListener('resize', onResize); onResize();
-
-// Lights
-const hemi = new THREE.HemisphereLight(0xffffff, 0x444466, 0.9); hemi.position.set(0,50,0); scene.add(hemi);
-const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(10,20,10); dir.castShadow = true; dir.shadow.mapSize.set(1024,1024); scene.add(dir);
-
-// Ground plane
-const groundMat = new THREE.MeshStandardMaterial({color:0x3a8b3a});
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(200,200), groundMat); ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
-
-// Helper platform creation
-function makePlatform(x,z,w=6,h=0.5,d=6,color=0x8b5a2b){
-  const geo = new THREE.BoxGeometry(w,h,d);
-  const mat = new THREE.MeshStandardMaterial({color});
-  const m = new THREE.Mesh(geo, mat);
-  m.position.set(x,h/2,z);
-  m.receiveShadow = true; m.castShadow = true;
-  m.userData.isPlatform = true;
-  scene.add(m);
-  return m;
-}
-
-// Level: array of platforms
-const platforms = [];
-platforms.push(makePlatform(0,0,12,0.5,12,0x6b8e23)); // start big platform
-platforms.push(makePlatform(10,-6,6,0.5,6));
-platforms.push(makePlatform(20,0,6,0.5,6));
-platforms.push(makePlatform(30,6,10,0.5,6));
-platforms.push(makePlatform(44,6,6,0.5,6));
-platforms.push(makePlatform(60,0,12,0.5,12));
-platforms.push(makePlatform(80,-6,20,0.5,10));
-
-// Add floating small blocks and moving platforms
-const movingPlatforms = [];
-const mp = makePlatform(40,-12,8,0.5,6,0x4682b4); movingPlatforms.push({mesh:mp,dir:1,range:10,speed:2});
-const mp2 = makePlatform(52,-18,6,0.5,6,0x4682b4); movingPlatforms.push({mesh:mp2,dir:1,range:6,speed:1.5});
-
-// Player
-const playerGeo = new THREE.SphereGeometry(0.8,24,24);
-const playerMat = new THREE.MeshStandardMaterial({color:0xff3333});
-const player = new THREE.Mesh(playerGeo, playerMat); player.castShadow = true; player.position.set(0,2,0); scene.add(player);
-
-let velocity = new THREE.Vector3();
-let onGround = false;
-let canDoubleJump = false;
-
-// Collectibles (coins)
-const coins = [];
-const coinGeo = new THREE.CylinderGeometry(0.35,0.35,0.1,16);
-const coinMat = new THREE.MeshStandardMaterial({color:0xffd700, emissive:0x553300});
-function spawnCoin(x,z,y=1.2){ const c = new THREE.Mesh(coinGeo, coinMat); c.rotation.x = Math.PI/2; c.position.set(x,y,z); c.userData.collected=false; scene.add(c); coins.push(c); }
-spawnCoin(10,-6); spawnCoin(20,0); spawnCoin(30,6); spawnCoin(44,6); spawnCoin(60,0); spawnCoin(80,-6);
-
-// Enemies: simple box that patrols
-const enemies = [];
-function spawnEnemy(x,z,range=4){ const e = new THREE.Mesh(new THREE.BoxGeometry(1.2,1,1.2), new THREE.MeshStandardMaterial({color:0x2222ff})); e.position.set(x,1,z); e.userData.dir=1; e.userData.range=range; e.userData.originX=x; e.castShadow=true; scene.add(e); enemies.push(e); }
-spawnEnemy(22,0,5); spawnEnemy(46,6,6); spawnEnemy(66,0,8);
+  <div class="hud">Score: <span id="score">0</span> Lives: <span id="lives">3</span></div>
+  <div class="controls">Arrows / WASD to move — Space to jump</div>
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight; canvas.width=W; canvas.height=H;
+window.addEventListener('resize',()=>{W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H;});
 
 // Game state
-let score = 0; let lives = 3;
-const scoreEl = document.getElementById('score'); const livesEl = document.getElementById('lives');
-function updateHUD(){ scoreEl.textContent = score; livesEl.textContent = lives; }
-updateHUD();
+let score=0; let lives=3;
+const scoreEl=document.getElementById('score'); const livesEl=document.getElementById('lives');
+
+// Level platforms
+const platforms=[{x:0,y:H-40,w:W,h:40},{x:200,y:H-120,w:120,h:20},{x:400,y:H-200,w:120,h:20},{x:650,y:H-280,w:120,h:20},{x:900,y:H-360,w:180,h:20}];
+
+// Coins
+const coins=[]; function addCoin(x,y){coins.push({x,y,r:10,collected:false});}
+addCoin(230,H-140); addCoin(430,H-220); addCoin(680,H-300); addCoin(950,H-380);
+
+// Enemies
+const enemies=[]; function addEnemy(x,y){enemies.push({x,y,w:30,h:30,dir:1,range:80,origin:x});}
+addEnemy(450,H-230); addEnemy(950,H-390);
+
+// Player
+const player={x:50,y:H-80,w:30,h:30,vx:0,vy:0,onGround:false};
 
 // Input
-const keys = {};
-window.addEventListener('keydown',(e)=>{ keys[e.code]=true; if(e.code==='Space') e.preventDefault(); });
-window.addEventListener('keyup',(e)=>{ keys[e.code]=false; });
+const keys={}; window.addEventListener('keydown',e=>{keys[e.code]=true;}); window.addEventListener('keyup',e=>{keys[e.code]=false;});
 
-// Restart
-document.getElementById('restart').addEventListener('click', ()=>{ resetLevel(); });
+function reset(){score=0;lives=3;player.x=50;player.y=H-80;player.vx=0;player.vy=0;coins.forEach(c=>c.collected=false);}
 
-// Simple AABB collision helpers
-function aabbIntersect(aPos, aHalf, bPos, bHalf){
-  return Math.abs(aPos.x - bPos.x) <= (aHalf.x + bHalf.x) &&
-         Math.abs(aPos.y - bPos.y) <= (aHalf.y + bHalf.y) &&
-         Math.abs(aPos.z - bPos.z) <= (aHalf.z + bHalf.z);
-}
+function update(dt){
+  // Move enemies
+  for(const e of enemies){e.x+=e.dir*60*dt;if(Math.abs(e.x-e.origin)>e.range)e.dir*=-1;}
 
-// Bounding boxes for player (approx sphere with box)
-function playerBox(){ return {pos:player.position.clone(), half:new THREE.Vector3(0.8,0.9,0.8)}; }
+  // Input
+  if(keys['ArrowLeft']||keys['KeyA']) player.vx=-150; else if(keys['ArrowRight']||keys['KeyD']) player.vx=150; else player.vx=0;
+  if((keys['Space']||keys['ArrowUp']||keys['KeyW'])&&player.onGround){player.vy=-350;player.onGround=false;}
 
-// Platform boxes
-function platformBox(mesh){ const b = new THREE.Vector3().copy(mesh.scale); // not used
-  const size = new THREE.Vector3(); mesh.geometry.computeBoundingBox(); mesh.geometry.boundingBox.getSize(size);
-  return {pos:mesh.position.clone(), half:new THREE.Vector3(size.x/2, size.y/2, size.z/2)};
-}
+  // Gravity
+  player.vy+=800*dt;
+  player.x+=player.vx*dt; player.y+=player.vy*dt;
 
-// Main loop
-let lastTime = performance.now();
-function animate(now){ requestAnimationFrame(animate); const dt = Math.min((now-lastTime)/1000, 0.05); lastTime = now;
-
-  // moving platforms
-  for(const mp of movingPlatforms){ mp.mesh.position.x = mp.mesh.position.x + Math.sin(now*0.001*mp.speed)*0; /* placeholder for smoother paths */ }
-  // simpler: oscillate along X
-  for(const m of movingPlatforms){ const t = now*0.001*m.speed; m.mesh.position.x = m.mesh.userData?.originX || m.mesh.position.x; if(m.mesh.userData.originX===undefined) m.mesh.userData.originX = m.mesh.position.x; m.mesh.position.x = m.mesh.userData.originX + Math.sin(t)*m.range; }
-
-  // player input -> horizontal movement
-  const move = new THREE.Vector3(); if(keys['KeyA'] || keys['ArrowLeft']) move.x -= 1; if(keys['KeyD'] || keys['ArrowRight']) move.x += 1; if(keys['KeyW'] || keys['ArrowUp']) move.z -= 1; if(keys['KeyS'] || keys['ArrowDown']) move.z += 1; if(move.lengthSq()>0) move.normalize();
-  // move relative to camera forward
-  const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir); camDir.y=0; camDir.normalize(); const camRight = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), camDir).normalize();
-  const desired = camDir.multiplyScalar(-move.z).add(camRight.multiplyScalar(move.x)).normalize().multiplyScalar(8);
-  player.position.x += desired.x * dt; player.position.z += desired.z * dt;
-
-  // jump logic
-  if((keys['Space'] || keys['KeyX']) ){ if(onGround){ velocity.y = 10; onGround=false; canDoubleJump=true; } else if(canDoubleJump){ velocity.y = 9; canDoubleJump=false; } }
-
-  // gravity
-  velocity.y -= 30 * dt; player.position.y += velocity.y * dt;
-
-  // platform collision: check if falling and intersects a platform from above
-  onGround = false;
-  const pbox = playerBox();
-  for(const plat of platforms.concat(movingPlatforms.map(m=>m.mesh))){
-    const bbox = platformBox(plat);
-    if(aabbIntersect(pbox.pos, pbox.half, bbox.pos, bbox.half)){
-      // simple resolve: if player's previous y was above platform
-      const py = player.position.y; const platTop = bbox.pos.y + bbox.half.y;
-      if(player.position.y > platTop - 0.4){ // landed on top
-        player.position.y = platTop + pbox.half.y - 0.01; velocity.y = 0; onGround = true; }
-    }
-  }
-
-  // world floor
-  if(player.position.y < -10){ loseLife(); }
-
-  // coins collection
-  for(const c of coins){ if(c.userData.collected) continue; const d = player.position.distanceTo(c.position); if(d < 1.4){ c.userData.collected = true; scene.remove(c); score += 1; updateHUD(); } else { c.rotation.z += dt*6; c.position.y = 1.2 + Math.sin(now*0.002 + coins.indexOf(c))*0.12; } }
-
-  // enemies movement & collision
-  for(const e of enemies){ e.position.x += e.userData.dir * dt * 2.2; if(Math.abs(e.position.x - e.userData.originX) > e.userData.range) e.userData.dir *= -1; // patrol
-    // collision with player
-    const enemyBox = {pos:e.position.clone(), half:new THREE.Vector3(0.6,0.5,0.6)};
-    if(aabbIntersect(pbox.pos, pbox.half, enemyBox.pos, enemyBox.half)){
-      // if player is falling & above enemy: stomp
-      if(velocity.y < -2 && (player.position.y - e.position.y) > 0.3){ // stomp
-        // kill enemy
-        scene.remove(e); enemies.splice(enemies.indexOf(e),1); velocity.y = 6; score += 2; updateHUD();
-      } else {
-        // take damage and respawn
-        loseLife();
+  // Collisions with platforms
+  player.onGround=false;
+  for(const p of platforms){
+    if(player.x< p.x+p.w && player.x+player.w>p.x && player.y< p.y+p.h && player.y+player.h>p.y){
+      // landed on top
+      if(player.vy>0 && player.y+player.h-p.vy*dt<=p.y){
+        player.y=p.y-player.h; player.vy=0; player.onGround=true;
       }
     }
   }
 
-  // camera follows player smoothly
-  const camTarget = new THREE.Vector3().copy(player.position).add(new THREE.Vector3(0,2.5,6));
-  camera.position.lerp(camTarget, 0.08);
-  controls.target.lerp(new THREE.Vector3(player.position.x, player.position.y+1.5, player.position.z), 0.08);
-  controls.update();
+  // Boundaries
+  if(player.y>H){lives--;respawn();}
 
-  renderer.render(scene, camera);
+  // Coin collection
+  for(const c of coins){if(!c.collected){const dx=player.x+player.w/2-c.x;const dy=player.y+player.h/2-c.y; if(Math.sqrt(dx*dx+dy*dy)<20){c.collected=true;score++;}}}
+
+  // Enemy collision
+  for(const e of enemies){
+    if(player.x<e.x+e.w && player.x+player.w>e.x && player.y<e.y+e.h && player.y+player.h>e.y){
+      if(player.vy>0){ // stomp
+        enemies.splice(enemies.indexOf(e),1); score+=2; player.vy=-250;
+      } else {lives--;respawn();}
+    }
+  }
+
+  scoreEl.textContent=score; livesEl.textContent=lives;
 }
-requestAnimationFrame(animate);
 
-// lose life
-function loseLife(){ lives -= 1; updateHUD(); if(lives <= 0){ // game over: reset
-    resetLevel(); } else { respawnPlayer(); } }
-function respawnPlayer(){ player.position.set(0,3,0); velocity.set(0,0,0); }
+function respawn(){player.x=50;player.y=H-80;player.vx=0;player.vy=0; if(lives<=0){reset();}}
 
-// reset everything
-function resetLevel(){ // clear coins/enemies and recreate
-  // remove leftover
-  for(const c of coins){ if(c.parent) scene.remove(c); }
-  coins.length = 0;
-  spawnCoin(10,-6); spawnCoin(20,0); spawnCoin(30,6); spawnCoin(44,6); spawnCoin(60,0); spawnCoin(80,-6);
-  for(const e of enemies){ if(e.parent) scene.remove(e); }
-  enemies.length = 0; spawnEnemy(22,0,5); spawnEnemy(46,6,6); spawnEnemy(66,0,8);
-  score = 0; lives = 3; updateHUD(); respawnPlayer(); }
+function draw(){ctx.clearRect(0,0,W,H);
+  // Platforms
+  ctx.fillStyle='#654321'; for(const p of platforms){ctx.fillRect(p.x,p.y,p.w,p.h);}
+  // Coins
+  ctx.fillStyle='gold'; for(const c of coins){if(!c.collected){ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.fill();}}
+  // Enemies
+  ctx.fillStyle='blue'; for(const e of enemies){ctx.fillRect(e.x,e.y,e.w,e.h);} 
+  // Player
+  ctx.fillStyle='red'; ctx.fillRect(player.x,player.y,player.w,player.h);
+}
 
-// small UX: click canvas to enable keyboard focus
-canvas.addEventListener('click', ()=>{ canvas.focus(); });
-
-// initial setup: mark moving platforms' origin
-for(const m of movingPlatforms){ m.mesh.userData.originX = m.mesh.position.x; }
-
+let last=performance.now();
+function loop(now){const dt=(now-last)/1000; last=now; update(dt); draw(); requestAnimationFrame(loop);} requestAnimationFrame(loop);
 </script>
 </body>
 </html>

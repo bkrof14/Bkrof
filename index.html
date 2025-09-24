@@ -1,137 +1,167 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>JumpQuest 2D — Multi-Level Platformer (Touch Fix)</title>
+  <meta charset="UTF-8">
+  <title>Multilevel Platformer</title>
   <style>
-    html,body {margin:0;padding:0;height:100%;background:#87ceeb;overflow:hidden;}
-    canvas {display:block;background:#87ceeb;}
-    .hud {position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.45);color:#fff;padding:8px 12px;border-radius:6px;font-family:sans-serif;font-size:18px;z-index:10}
-    .hud span{display:inline-block;min-width:40px;text-align:right}
-    .controls {position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.35);color:#fff;padding:6px 10px;border-radius:6px;font-family:sans-serif;font-size:14px;z-index:10}
-    .touch-controls {position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:15px;z-index:20}
-    .btn {width:64px;height:64px;background:rgba(0,0,0,0.55);color:#fff;font-size:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:none}
+    body { margin: 0; overflow: hidden; background: linear-gradient(skyblue, lightgreen); }
+    canvas { display: block; margin: 0 auto; background: #87ceeb; }
+    #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+    .btn { width: 60px; height: 60px; background: rgba(0,0,0,0.5); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; user-select: none; touch-action: none; }
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <div class="hud">Level: <span id="level">1</span> | Score: <span id="score">0</span> | Lives: <span id="lives">3</span></div>
-  <div class="controls">Arrows / WASD / Touch to move — Hold buttons to keep moving</div>
-  <div class="touch-controls">
-    <div class="btn" id="left">◀</div>
-    <div class="btn" id="jump">⭡</div>
-    <div class="btn" id="right">▶</div>
+  <canvas id="game" width="800" height="450"></canvas>
+  <div id="controls">
+    <div class="btn" id="left">⟵</div>
+    <div class="btn" id="right">⟶</div>
+    <div class="btn" id="jump">⤒</div>
   </div>
 <script>
-// Simple multi-level platformer with robust touch/pointer handling so buttons work and can be held
-const canvas=document.getElementById('game');
-const ctx=canvas.getContext('2d');
-let W=innerWidth,H=innerHeight; canvas.width=W; canvas.height=H;
-window.addEventListener('resize',()=>{W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H; loadLevel(currentLevel);});
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-let score=0; let lives=3; let currentLevel=0;
-const scoreEl=document.getElementById('score'); const livesEl=document.getElementById('lives'); const levelEl=document.getElementById('level');
+let keys = { left:false, right:false, jump:false };
 
-// Level definitions (level 3 lowered so it's reachable)
-const levels=[
-  { platforms:[{x:0,y:H-40,w:W,h:40},{x:200,y:H-120,w:120,h:20},{x:400,y:H-200,w:120,h:20}], coins:[[230,H-140],[430,H-220]], enemies:[[450,H-230]], spikes:[[600,H-40]] },
-  { platforms:[{x:0,y:H-40,w:W,h:40},{x:300,y:H-120,w:120,h:20},{x:500,y:H-200,w:120,h:20},{x:700,y:H-280,w:150,h:20}], coins:[[330,H-140],[530,H-220],[730,H-300]], enemies:[[500,H-230]], spikes:[[250,H-40],[650,H-40]] },
-  { platforms:[{x:0,y:H-40,w:W,h:40},{x:200,y:H-130,w:100,h:20},{x:350,y:H-200,w:100,h:20},{x:520,y:H-270,w:100,h:20},{x:700,y:H-340,w:150,h:20}], coins:[[220,H-150],[370,H-220],[540,H-290],[730,H-360]], enemies:[[370,H-220],[720,H-360]], spikes:[[150,H-40],[400,H-40],[650,H-40]] },
-  { platforms:[{x:0,y:H-40,w:W,h:40},{x:250,y:H-120,w:120,h:20},{x:450,y:H-200,w:120,h:20},{x:650,y:H-280,w:120,h:20},{x:850,y:H-360,w:180,h:20}], coins:[[270,H-140],[470,H-220],[670,H-300],[900,H-380]], enemies:[[470,H-220],[870,H-380]], spikes:[[600,H-40],[780,H-40]] },
-  { platforms:[{x:0,y:H-40,w:W,h:40},{x:200,y:H-100,w:100,h:20},{x:400,y:H-180,w:100,h:20},{x:600,y:H-260,w:100,h:20},{x:800,y:H-340,w:100,h:20},{x:1000,y:H-420,w:150,h:20}], coins:[[220,H-120],[420,H-200],[620,H-280],[820,H-360],[1050,H-440]], enemies:[[420,H-200],[820,H-360]], spikes:[[300,H-40],[700,H-40],[950,H-40]] }
-];
+class Player {
+  constructor(){
+    this.x=50; this.y=0; this.w=30; this.h=30;
+    this.vx=0; this.vy=0;
+    this.speed=0.4; this.maxSpeed=4;
+    this.jumpStrength=9; this.onGround=false;
+    this.lives=3; this.score=0;
+    this.respawnX=50; this.respawnY=0;
+  }
+  update(){
+    if(keys.left) this.vx -= this.speed;
+    if(keys.right) this.vx += this.speed;
+    if(!keys.left && !keys.right){
+      this.vx *= 0.8; // friction
+    }
+    if(this.vx>this.maxSpeed) this.vx=this.maxSpeed;
+    if(this.vx<-this.maxSpeed) this.vx=-this.maxSpeed;
 
-let platforms=[],coins=[],enemies=[],spikes=[];
-function loadLevel(n){ const lvl=levels[n]; platforms=lvl.platforms.slice(); coins=lvl.coins.map(c=>({x:c[0],y:c[1],r:10,collected:false})); enemies=lvl.enemies.map(e=>({x:e[0],y:e[1],w:30,h:30,dir:1,range:80,origin:e[0]})); spikes=lvl.spikes.map(s=>({x:s[0],y:s[1],w:40,h:40})); respawn(); levelEl.textContent=(n+1); }
+    this.vy += 0.5; // gravity
+    this.x += this.vx;
+    this.y += this.vy;
 
-// Player
-const player={x:50,y:H-80,w:30,h:40,vx:0,vy:0,onGround:false};
-
-// Input state
-const keys={}; window.addEventListener('keydown',e=>{keys[e.code]=true;}); window.addEventListener('keyup',e=>{keys[e.code]=false;});
-
-// Touch / pointer flags
-let touchLeft=false,touchRight=false,touchJump=false;
-const leftBtn=document.getElementById('left'); const rightBtn=document.getElementById('right'); const jumpBtn=document.getElementById('jump');
-
-// Helper to attach robust pointer handlers so buttons work and can be held
-function attachPointerHold(btn, flagName){
-  const active = new Set();
-  btn.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    active.add(e.pointerId);
-    try{ btn.setPointerCapture && btn.setPointerCapture(e.pointerId); }catch(err){}
-    if(flagName==='left') touchLeft = true;
-    if(flagName==='right') touchRight = true;
-    if(flagName==='jump') touchJump = true;
-  });
-  const release = e => {
-    // some browsers might send undefined pointerId in synthetic events - guard
-    if(e && e.pointerId !== undefined) active.delete(e.pointerId);
-    try{ btn.releasePointerCapture && btn.releasePointerCapture(e.pointerId); }catch(err){}
-    if(active.size === 0){ if(flagName==='left') touchLeft=false; if(flagName==='right') touchRight=false; if(flagName==='jump') touchJump=false; }
-  };
-  btn.addEventListener('pointerup', release);
-  btn.addEventListener('pointercancel', release);
-  btn.addEventListener('pointerleave', ev => {
-    // if user drags finger off the button while still pressed, pointercancel/up may not fire — clear if pressure is zero
-    if(ev.pressure === 0) release(ev);
-  });
-  // Fallback for older browsers: touchstart/touchend
-  btn.addEventListener('touchstart', e => { e.preventDefault(); if(flagName==='left') touchLeft=true; if(flagName==='right') touchRight=true; if(flagName==='jump') touchJump=true; });
-  btn.addEventListener('touchend', e => { e.preventDefault(); if(flagName==='left') touchLeft=false; if(flagName==='right') touchRight=false; if(flagName==='jump') touchJump=false; });
-}
-attachPointerHold(leftBtn,'left'); attachPointerHold(rightBtn,'right'); attachPointerHold(jumpBtn,'jump');
-
-function reset(){ score=0; lives=3; currentLevel=0; loadLevel(currentLevel); coins.forEach(c=>c.collected=false); }
-function respawn(){ player.x=50; player.y=H-80; player.vx=0; player.vy=0; player.onGround=false; if(lives<=0){ reset(); } }
-
-function update(dt){
-  const speed=200;
-  if(keys['ArrowLeft']||keys['KeyA']||touchLeft) player.vx=-speed; else if(keys['ArrowRight']||keys['KeyD']||touchRight) player.vx=speed; else player.vx=0;
-  // Jump triggers only when pressing and onGround; holding jump won't re-trigger mid-air
-  if((keys['Space']||keys['ArrowUp']||keys['KeyW']||touchJump) && player.onGround){ player.vy=-400; player.onGround=false; }
-
-  player.vy += 900 * dt;
-  player.x += player.vx * dt; player.y += player.vy * dt;
-
-  player.onGround = false;
-  for(const p of platforms){
-    if(player.x < p.x + p.w && player.x + player.w > p.x && player.y < p.y + p.h && player.y + player.h > p.y){
-      if(player.vy > 0 && player.y + player.h - player.vy * dt <= p.y){ player.y = p.y - player.h; player.vy = 0; player.onGround = true; }
-      if(player.vx > 0 && player.x + player.w - player.vx * dt <= p.x){ player.x = p.x - player.w; }
-      if(player.vx < 0 && player.x - player.vx * dt >= p.x + p.w){ player.x = p.x + p.w; }
+    // collisions
+    this.onGround=false;
+    for(let p of levels[currentLevel].platforms){
+      if(this.x < p.x+p.w && this.x+this.w > p.x && this.y+this.h < p.y+20 && this.y+this.h+this.vy >= p.y){
+        this.y = p.y - this.h;
+        this.vy = 0;
+        this.onGround=true;
+      }
+    }
+    // spikes
+    for(let s of levels[currentLevel].spikes){
+      if(this.x < s.x+s.w && this.x+this.w > s.x && this.y < s.y+s.h && this.y+this.h > s.y){
+        this.die();
+      }
+    }
+    // enemies
+    for(let e of levels[currentLevel].enemies){
+      if(this.x < e.x+e.w && this.x+this.w > e.x && this.y < e.y+e.h && this.y+this.h > e.y){
+        if(this.vy>0){ // stomp
+          e.dead=true; this.vy=-8;
+        } else {
+          this.die();
+        }
+      }
+    }
+    // coins
+    for(let c of levels[currentLevel].coins){
+      if(!c.collected && this.x < c.x+20 && this.x+this.w > c.x && this.y < c.y+20 && this.y+this.h > c.y){
+        c.collected=true; this.score++;
+      }
+    }
+    // win check
+    if(levels[currentLevel].coins.every(c=>c.collected)){
+      currentLevel++;
+      if(currentLevel>=levels.length){
+        alert("You win!");
+        currentLevel=0; this.reset();
+      } else {
+        this.respawnX=50; this.respawnY=0;
+        this.x=50; this.y=0; this.vx=0; this.vy=0;
+      }
+    }
+    if(this.y>canvas.height+100){ this.die(); }
+  }
+  jump(){ if(this.onGround){ this.vy=-this.jumpStrength; this.onGround=false; } }
+  die(){
+    this.lives--;
+    canvas.classList.add("flash");
+    setTimeout(()=>canvas.classList.remove("flash"),100);
+    if(this.lives<=0){
+      alert("Game Over"); this.reset();
+    } else {
+      this.x=this.respawnX; this.y=this.respawnY; this.vx=0; this.vy=0;
     }
   }
-
-  if(player.y > H){ lives--; respawn(); }
-
-  for(const c of coins){ if(!c.collected){ const dx = player.x + player.w/2 - c.x; const dy = player.y + player.h/2 - c.y; if(Math.sqrt(dx*dx+dy*dy) < 20){ c.collected = true; score++; } } }
-
-  for(const e of enemies){ e.x += e.dir * 60 * dt; if(Math.abs(e.x - e.origin) > e.range) e.dir *= -1; if(player.x < e.x + e.w && player.x + player.w > e.x && player.y < e.y + e.h && player.y + player.h > e.y){ if(player.vy > 0){ enemies.splice(enemies.indexOf(e),1); score += 2; player.vy = -250; } else { lives--; respawn(); } } }
-
-  for(const s of spikes){ if(player.x < s.x + s.w && player.x + player.w > s.x && player.y < s.y + s.h && player.y + player.h > s.y){ lives--; respawn(); } }
-
-  // Next level when all coins collected
-  if(coins.every(c => c.collected)){
-    if(currentLevel < levels.length - 1){ currentLevel++; loadLevel(currentLevel); } else { alert('You win! Final Score: ' + score); reset(); }
+  reset(){ this.lives=3; this.score=0; currentLevel=0; this.x=50; this.y=0; this.vx=0; this.vy=0; }
+  draw(){
+    ctx.fillStyle="red";
+    ctx.fillRect(this.x,this.y,this.w,this.h);
+    ctx.fillStyle="white";
+    ctx.fillRect(this.x+5,this.y+8,5,5);
+    ctx.fillRect(this.x+20,this.y+8,5,5);
   }
-
-  scoreEl.textContent = score; livesEl.textContent = lives; levelEl.textContent = currentLevel + 1;
 }
 
-function draw(){ ctx.clearRect(0,0,W,H);
-  const grd = ctx.createLinearGradient(0,0,0,H); grd.addColorStop(0,'#87ceeb'); grd.addColorStop(1,'#e0f6ff'); ctx.fillStyle = grd; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle = '#654321'; for(const p of platforms) ctx.fillRect(p.x,p.y,p.w,p.h);
-  ctx.fillStyle = 'gold'; ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 2; for(const c of coins) if(!c.collected){ ctx.beginPath(); ctx.arc(c.x,c.y,c.r,0,Math.PI*2); ctx.fill(); ctx.stroke(); }
-  ctx.fillStyle = '#0044cc'; for(const e of enemies) ctx.fillRect(e.x,e.y,e.w,e.h);
-  ctx.fillStyle = '#444'; ctx.beginPath(); for(const s of spikes){ ctx.moveTo(s.x,s.y+s.h); ctx.lineTo(s.x+s.w/2,s.y); ctx.lineTo(s.x+s.w,s.y+s.h); ctx.closePath(); } ctx.fill();
-  ctx.fillStyle = 'red'; ctx.fillRect(player.x,player.y,player.w,player.h); ctx.fillStyle = '#fff'; ctx.fillRect(player.x+6,player.y+8,6,6); ctx.fillRect(player.x+18,player.y+8,6,6);
+class Enemy{
+  constructor(x,y){ this.x=x; this.y=y; this.w=30; this.h=30; this.vx=2; this.dead=false; }
+  update(){ if(this.dead) return; this.x+=this.vx; if(this.x<0||this.x+this.w>canvas.width) this.vx*=-1; }
+  draw(){ if(this.dead) return; ctx.fillStyle="blue"; ctx.fillRect(this.x,this.y,this.w,this.h); }
 }
 
-let last = performance.now(); function loop(now){ const dt = (now - last) / 1000; if(dt < 0.1) update(dt); last = now; draw(); requestAnimationFrame(loop); }
-loadLevel(currentLevel); requestAnimationFrame(loop);
+function makeLevel(platforms,coins,enemies,spikes){ return {platforms,coins,enemies,spikes}; }
+
+let levels=[
+  makeLevel([{x:0,y:400,w:800,h:50}], [{x:200,y:360,collected:false}], [new Enemy(400,370)], [{x:600,y:380,w:30,h:20}]),
+  makeLevel([{x:0,y:400,w:800,h:50},{x:200,y:300,w:100,h:20}], [{x:210,y:260,collected:false},{x:500,y:360,collected:false}], [new Enemy(500,370)], [{x:300,y:380,w:30,h:20}]),
+  makeLevel([{x:0,y:400,w:800,h:50},{x:150,y:330,w:100,h:20},{x:350,y:260,w:100,h:20}], [{x:160,y:290,collected:false},{x:360,y:220,collected:false}], [new Enemy(600,370)], [{x:450,y:380,w:30,h:20}]),
+  makeLevel([{x:0,y:400,w:800,h:50},{x:250,y:300,w:100,h:20},{x:500,y:200,w:100,h:20}], [{x:260,y:260,collected:false},{x:510,y:160,collected:false}], [new Enemy(300,270)], [{x:600,y:380,w:30,h:20}]),
+  makeLevel([{x:0,y:400,w:800,h:50},{x:200,y:320,w:100,h:20},{x:400,y:240,w:100,h:20},{x:600,y:160,w:100,h:20}], [{x:210,y:280,collected:false},{x:410,y:200,collected:false},{x:610,y:120,collected:false}], [new Enemy(700,370)], [{x:500,y:380,w:30,h:20}])
+];
+
+let currentLevel=0;
+let player=new Player();
+
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  player.update();
+  for(let p of levels[currentLevel].platforms){ ctx.fillStyle="brown"; ctx.fillRect(p.x,p.y,p.w,p.h); }
+  for(let s of levels[currentLevel].spikes){ ctx.fillStyle="black"; ctx.beginPath(); ctx.moveTo(s.x,s.y+s.h); ctx.lineTo(s.x+s.w/2,s.y); ctx.lineTo(s.x+s.w,s.y+s.h); ctx.closePath(); ctx.fill(); }
+  for(let c of levels[currentLevel].coins){ if(!c.collected){ ctx.fillStyle="gold"; ctx.beginPath(); ctx.arc(c.x+10,c.y+10,10,0,Math.PI*2); ctx.fill(); ctx.stroke(); } }
+  for(let e of levels[currentLevel].enemies){ e.update(); e.draw(); }
+  player.draw();
+  ctx.fillStyle="black"; ctx.fillText("Lives: "+player.lives,10,20); ctx.fillText("Score: "+player.score,10,40); ctx.fillText("Level: "+(currentLevel+1),10,60);
+  requestAnimationFrame(loop);
+}
+loop();
+
+// keyboard
+window.addEventListener("keydown",e=>{ if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=true; if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=true; if(e.code==="Space"||e.code==="ArrowUp"||e.code==="KeyW"){ keys.jump=true; player.jump(); } });
+window.addEventListener("keyup",e=>{ if(e.code==="ArrowLeft"||e.code==="KeyA") keys.left=false; if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=false; if(e.code==="Space"||e.code==="ArrowUp"||e.code==="KeyW") keys.jump=false; });
+
+// touch controls
+function bindBtn(id,action){
+  let btn=document.getElementById(id);
+  btn.addEventListener("pointerdown",()=>{ keys[action]=true; if(action==="jump") player.jump(); });
+  btn.addEventListener("pointerup",()=>{ keys[action]=false; });
+  btn.addEventListener("pointerleave",()=>{ keys[action]=false; });
+  btn.addEventListener("pointercancel",()=>{ keys[action]=false; });
+}
+bindBtn("left","left");
+bindBtn("right","right");
+bindBtn("jump","jump");
+
 </script>
+<style>
+#game.flash { animation: flashAnim 0.2s; }
+@keyframes flashAnim { from{background:red;} to{background:skyblue;} }
+</style>
 </body>
 </html>

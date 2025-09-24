@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>JumpQuest 2D — Simple HTML Platformer</title>
+  <title>JumpQuest 2D — Improved Platformer</title>
   <style>
     html,body {margin:0;padding:0;height:100%;background:#87ceeb;overflow:hidden;}
     canvas {display:block;background:#87ceeb;}
-    .hud {position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.45);color:#fff;padding:8px 12px;border-radius:6px;font-family:sans-serif}
+    .hud {position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.45);color:#fff;padding:8px 12px;border-radius:6px;font-family:sans-serif;font-size:18px;}
     .hud span{display:inline-block;min-width:40px;text-align:right}
-    .controls {position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.35);color:#fff;padding:6px 10px;border-radius:6px;font-family:sans-serif}
+    .controls {position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.35);color:#fff;padding:6px 10px;border-radius:6px;font-family:sans-serif;font-size:14px;}
   </style>
 </head>
 <body>
@@ -26,7 +26,7 @@ window.addEventListener('resize',()=>{W=innerWidth;H=innerHeight;canvas.width=W;
 let score=0; let lives=3;
 const scoreEl=document.getElementById('score'); const livesEl=document.getElementById('lives');
 
-// Level platforms
+// Platforms
 const platforms=[{x:0,y:H-40,w:W,h:40},{x:200,y:H-120,w:120,h:20},{x:400,y:H-200,w:120,h:20},{x:650,y:H-280,w:120,h:20},{x:900,y:H-360,w:180,h:20}];
 
 // Coins
@@ -38,33 +38,36 @@ const enemies=[]; function addEnemy(x,y){enemies.push({x,y,w:30,h:30,dir:1,range
 addEnemy(450,H-230); addEnemy(950,H-390);
 
 // Player
-const player={x:50,y:H-80,w:30,h:30,vx:0,vy:0,onGround:false};
+const player={x:50,y:H-80,w:30,h:40,vx:0,vy:0,onGround:false};
 
 // Input
 const keys={}; window.addEventListener('keydown',e=>{keys[e.code]=true;}); window.addEventListener('keyup',e=>{keys[e.code]=false;});
 
-function reset(){score=0;lives=3;player.x=50;player.y=H-80;player.vx=0;player.vy=0;coins.forEach(c=>c.collected=false);}
+function reset(){score=0;lives=3;respawn();coins.forEach(c=>c.collected=false);}
+
+function respawn(){player.x=50;player.y=H-80;player.vx=0;player.vy=0;player.onGround=false; if(lives<=0){reset();}}
 
 function update(dt){
-  // Move enemies
-  for(const e of enemies){e.x+=e.dir*60*dt;if(Math.abs(e.x-e.origin)>e.range)e.dir*=-1;}
-
   // Input
-  if(keys['ArrowLeft']||keys['KeyA']) player.vx=-150; else if(keys['ArrowRight']||keys['KeyD']) player.vx=150; else player.vx=0;
-  if((keys['Space']||keys['ArrowUp']||keys['KeyW'])&&player.onGround){player.vy=-350;player.onGround=false;}
+  const speed=200;
+  if(keys['ArrowLeft']||keys['KeyA']) player.vx=-speed; else if(keys['ArrowRight']||keys['KeyD']) player.vx=speed; else player.vx=0;
+  if((keys['Space']||keys['ArrowUp']||keys['KeyW'])&&player.onGround){player.vy=-400;player.onGround=false;}
 
   // Gravity
-  player.vy+=800*dt;
+  player.vy+=900*dt;
   player.x+=player.vx*dt; player.y+=player.vy*dt;
 
   // Collisions with platforms
   player.onGround=false;
   for(const p of platforms){
     if(player.x< p.x+p.w && player.x+player.w>p.x && player.y< p.y+p.h && player.y+player.h>p.y){
-      // landed on top
-      if(player.vy>0 && player.y+player.h-p.vy*dt<=p.y){
+      // Coming down onto platform
+      if(player.vy>0 && player.y+player.h-player.vy*dt<=p.y){
         player.y=p.y-player.h; player.vy=0; player.onGround=true;
       }
+      // Prevent going through sides
+      if(player.vx>0 && player.x+player.w-player.vx*dt<=p.x){player.x=p.x-player.w;}
+      if(player.vx<0 && player.x-player.vx*dt>=p.x+p.w){player.x=p.x+p.w;}
     }
   }
 
@@ -86,21 +89,29 @@ function update(dt){
   scoreEl.textContent=score; livesEl.textContent=lives;
 }
 
-function respawn(){player.x=50;player.y=H-80;player.vx=0;player.vy=0; if(lives<=0){reset();}}
-
 function draw(){ctx.clearRect(0,0,W,H);
+  // Background
+  let grd=ctx.createLinearGradient(0,0,0,H);
+  grd.addColorStop(0,"#87ceeb"); grd.addColorStop(1,"#e0f6ff");
+  ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+
   // Platforms
-  ctx.fillStyle='#654321'; for(const p of platforms){ctx.fillRect(p.x,p.y,p.w,p.h);}
+  ctx.fillStyle='#654321'; for(const p of platforms){ctx.fillRect(p.x,p.y,p.w,p.h);} 
+
   // Coins
-  ctx.fillStyle='gold'; for(const c of coins){if(!c.collected){ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.fill();}}
+  ctx.fillStyle='gold'; ctx.strokeStyle='#b8860b'; ctx.lineWidth=2;
+  for(const c of coins){if(!c.collected){ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.fill();ctx.stroke();}}
+
   // Enemies
-  ctx.fillStyle='blue'; for(const e of enemies){ctx.fillRect(e.x,e.y,e.w,e.h);} 
+  ctx.fillStyle='#0044cc'; for(const e of enemies){ctx.fillRect(e.x,e.y,e.w,e.h);} 
+
   // Player
   ctx.fillStyle='red'; ctx.fillRect(player.x,player.y,player.w,player.h);
+  ctx.fillStyle='#fff'; ctx.fillRect(player.x+6,player.y+8,6,6); ctx.fillRect(player.x+18,player.y+8,6,6); // eyes
 }
 
 let last=performance.now();
-function loop(now){const dt=(now-last)/1000; last=now; update(dt); draw(); requestAnimationFrame(loop);} requestAnimationFrame(loop);
+function loop(now){const dt=(now-last)/1000; if(dt<0.1){update(dt);} last=now; draw(); requestAnimationFrame(loop);} requestAnimationFrame(loop);
 </script>
 </body>
 </html>

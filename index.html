@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>JumpQuest 2D — Improved Platformer</title>
+  <title>JumpQuest 2D — Multi-Level Platformer</title>
   <style>
     html,body {margin:0;padding:0;height:100%;background:#87ceeb;overflow:hidden;}
     canvas {display:block;background:#87ceeb;}
@@ -14,7 +14,7 @@
 </head>
 <body>
   <canvas id="game"></canvas>
-  <div class="hud">Score: <span id="score">0</span> Lives: <span id="lives">3</span></div>
+  <div class="hud">Level: <span id="level">1</span> | Score: <span id="score">0</span> | Lives: <span id="lives">3</span></div>
   <div class="controls">Arrows / WASD to move — Space to jump</div>
 <script>
 const canvas=document.getElementById('game');
@@ -22,20 +22,54 @@ const ctx=canvas.getContext('2d');
 let W=innerWidth,H=innerHeight; canvas.width=W; canvas.height=H;
 window.addEventListener('resize',()=>{W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H;});
 
-// Game state
-let score=0; let lives=3;
-const scoreEl=document.getElementById('score'); const livesEl=document.getElementById('lives');
+let score=0; let lives=3; let currentLevel=0;
+const scoreEl=document.getElementById('score'); const livesEl=document.getElementById('lives'); const levelEl=document.getElementById('level');
 
-// Platforms
-const platforms=[{x:0,y:H-40,w:W,h:40},{x:200,y:H-120,w:120,h:20},{x:400,y:H-200,w:120,h:20},{x:650,y:H-280,w:120,h:20},{x:900,y:H-360,w:180,h:20}];
+// Define 5 levels
+const levels=[
+  {
+    platforms:[{x:0,y:H-40,w:W,h:40},{x:200,y:H-120,w:120,h:20},{x:400,y:H-200,w:120,h:20}],
+    coins:[[230,H-140],[430,H-220]],
+    enemies:[[450,H-230]],
+    spikes:[[600,H-40]]
+  },
+  {
+    platforms:[{x:0,y:H-40,w:W,h:40},{x:300,y:H-120,w:120,h:20},{x:500,y:H-200,w:120,h:20},{x:700,y:H-280,w:150,h:20}],
+    coins:[[330,H-140],[530,H-220],[730,H-300]],
+    enemies:[[500,H-230]],
+    spikes:[[250,H-40],[650,H-40]]
+  },
+  {
+    platforms:[{x:0,y:H-40,w:W,h:40},{x:200,y:H-150,w:100,h:20},{x:350,y:H-230,w:100,h:20},{x:520,y:H-310,w:100,h:20},{x:700,y:H-390,w:150,h:20}],
+    coins:[[220,H-170],[370,H-250],[540,H-330],[730,H-410]],
+    enemies:[[370,H-260],[720,H-420]],
+    spikes:[[150,H-40],[400,H-40],[650,H-40]]
+  },
+  {
+    platforms:[{x:0,y:H-40,w:W,h:40},{x:250,y:H-120,w:120,h:20},{x:450,y:H-200,w:120,h:20},{x:650,y:H-280,w:120,h:20},{x:850,y:H-360,w:180,h:20}],
+    coins:[[270,H-140],[470,H-220],[670,H-300],[900,H-380]],
+    enemies:[[470,H-220],[870,H-380]],
+    spikes:[[600,H-40],[780,H-40]]
+  },
+  {
+    platforms:[{x:0,y:H-40,w:W,h:40},{x:200,y:H-100,w:100,h:20},{x:400,y:H-180,w:100,h:20},{x:600,y:H-260,w:100,h:20},{x:800,y:H-340,w:100,h:20},{x:1000,y:H-420,w:150,h:20}],
+    coins:[[220,H-120],[420,H-200],[620,H-280],[820,H-360],[1050,H-440]],
+    enemies:[[420,H-200],[820,H-360]],
+    spikes:[[300,H-40],[700,H-40],[950,H-40]]
+  }
+];
 
-// Coins
-const coins=[]; function addCoin(x,y){coins.push({x,y,r:10,collected:false});}
-addCoin(230,H-140); addCoin(430,H-220); addCoin(680,H-300); addCoin(950,H-380);
+let platforms=[],coins=[],enemies=[],spikes=[];
 
-// Enemies
-const enemies=[]; function addEnemy(x,y){enemies.push({x,y,w:30,h:30,dir:1,range:80,origin:x});}
-addEnemy(450,H-230); addEnemy(950,H-390);
+function loadLevel(n){
+  const lvl=levels[n];
+  platforms=lvl.platforms.slice();
+  coins=lvl.coins.map(c=>({x:c[0],y:c[1],r:10,collected:false}));
+  enemies=lvl.enemies.map(e=>({x:e[0],y:e[1],w:30,h:30,dir:1,range:80,origin:e[0]}));
+  spikes=lvl.spikes.map(s=>({x:s[0],y:s[1],w:40,h:40}));
+  respawn();
+  levelEl.textContent=(n+1);
+}
 
 // Player
 const player={x:50,y:H-80,w:30,h:40,vx:0,vy:0,onGround:false};
@@ -43,12 +77,11 @@ const player={x:50,y:H-80,w:30,h:40,vx:0,vy:0,onGround:false};
 // Input
 const keys={}; window.addEventListener('keydown',e=>{keys[e.code]=true;}); window.addEventListener('keyup',e=>{keys[e.code]=false;});
 
-function reset(){score=0;lives=3;respawn();coins.forEach(c=>c.collected=false);}
+function reset(){score=0;lives=3;currentLevel=0;loadLevel(currentLevel);coins.forEach(c=>c.collected=false);}
 
 function respawn(){player.x=50;player.y=H-80;player.vx=0;player.vy=0;player.onGround=false; if(lives<=0){reset();}}
 
 function update(dt){
-  // Input
   const speed=200;
   if(keys['ArrowLeft']||keys['KeyA']) player.vx=-speed; else if(keys['ArrowRight']||keys['KeyD']) player.vx=speed; else player.vx=0;
   if((keys['Space']||keys['ArrowUp']||keys['KeyW'])&&player.onGround){player.vy=-400;player.onGround=false;}
@@ -57,15 +90,13 @@ function update(dt){
   player.vy+=900*dt;
   player.x+=player.vx*dt; player.y+=player.vy*dt;
 
-  // Collisions with platforms
+  // Platform collisions
   player.onGround=false;
   for(const p of platforms){
     if(player.x< p.x+p.w && player.x+player.w>p.x && player.y< p.y+p.h && player.y+player.h>p.y){
-      // Coming down onto platform
       if(player.vy>0 && player.y+player.h-player.vy*dt<=p.y){
         player.y=p.y-player.h; player.vy=0; player.onGround=true;
       }
-      // Prevent going through sides
       if(player.vx>0 && player.x+player.w-player.vx*dt<=p.x){player.x=p.x-player.w;}
       if(player.vx<0 && player.x-player.vx*dt>=p.x+p.w){player.x=p.x+p.w;}
     }
@@ -74,19 +105,30 @@ function update(dt){
   // Boundaries
   if(player.y>H){lives--;respawn();}
 
-  // Coin collection
+  // Coins
   for(const c of coins){if(!c.collected){const dx=player.x+player.w/2-c.x;const dy=player.y+player.h/2-c.y; if(Math.sqrt(dx*dx+dy*dy)<20){c.collected=true;score++;}}}
 
-  // Enemy collision
+  // Enemies
   for(const e of enemies){
+    e.x+=e.dir*60*dt;if(Math.abs(e.x-e.origin)>e.range)e.dir*=-1;
     if(player.x<e.x+e.w && player.x+player.w>e.x && player.y<e.y+e.h && player.y+player.h>e.y){
-      if(player.vy>0){ // stomp
-        enemies.splice(enemies.indexOf(e),1); score+=2; player.vy=-250;
-      } else {lives--;respawn();}
+      if(player.vy>0){enemies.splice(enemies.indexOf(e),1);score+=2;player.vy=-250;} else {lives--;respawn();}
     }
   }
 
-  scoreEl.textContent=score; livesEl.textContent=lives;
+  // Spikes
+  for(const s of spikes){
+    if(player.x< s.x+s.w && player.x+player.w> s.x && player.y< s.y+s.h && player.y+player.h> s.y){
+      lives--;respawn();
+    }
+  }
+
+  // Check if all coins collected to move to next level
+  if(coins.every(c=>c.collected)){
+    if(currentLevel<levels.length-1){currentLevel++;loadLevel(currentLevel);} else {alert("You win! Final Score: "+score); reset();}
+  }
+
+  scoreEl.textContent=score; livesEl.textContent=lives; levelEl.textContent=currentLevel+1;
 }
 
 function draw(){ctx.clearRect(0,0,W,H);
@@ -105,13 +147,18 @@ function draw(){ctx.clearRect(0,0,W,H);
   // Enemies
   ctx.fillStyle='#0044cc'; for(const e of enemies){ctx.fillRect(e.x,e.y,e.w,e.h);} 
 
+  // Spikes
+  ctx.fillStyle='#444'; ctx.beginPath(); for(const s of spikes){ctx.moveTo(s.x,s.y+s.h);ctx.lineTo(s.x+s.w/2,s.y);ctx.lineTo(s.x+s.w,s.y+s.h);ctx.closePath();} ctx.fill();
+
   // Player
   ctx.fillStyle='red'; ctx.fillRect(player.x,player.y,player.w,player.h);
-  ctx.fillStyle='#fff'; ctx.fillRect(player.x+6,player.y+8,6,6); ctx.fillRect(player.x+18,player.y+8,6,6); // eyes
+  ctx.fillStyle='#fff'; ctx.fillRect(player.x+6,player.y+8,6,6); ctx.fillRect(player.x+18,player.y+8,6,6);
 }
 
 let last=performance.now();
-function loop(now){const dt=(now-last)/1000; if(dt<0.1){update(dt);} last=now; draw(); requestAnimationFrame(loop);} requestAnimationFrame(loop);
+function loop(now){const dt=(now-last)/1000; if(dt<0.1){update(dt);} last=now; draw(); requestAnimationFrame(loop);} 
+loadLevel(currentLevel);
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>

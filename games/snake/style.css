@@ -1,6 +1,6 @@
 body {
-    background-color: #000;
-    color: #fff;
+    background-color: #000; /* Sets the background to black */
+    color: #fff; /* Sets the text color to white */
     font-family: Arial, sans-serif;
     display: flex;
     justify-content: center;
@@ -11,9 +11,12 @@ body {
 }
 
 .game-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    padding: 20px;
+}
+
+h1 {
+    font-size: 3em;
+    margin-bottom: 20px;
 }
 
 canvas {
@@ -25,6 +28,7 @@ canvas {
     margin: 20px 0;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
 }
 
@@ -32,16 +36,18 @@ canvas {
     margin: 0;
 }
 
-.controls button {
+.controls button, #restart-btn {
     background-color: #333;
     color: #fff;
     border: none;
-    padding: 8px 16px;
+    padding: 10px 20px;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: background-color 0.3s ease;
 }
 
-.controls button:hover {
+.controls button:hover, #restart-btn:hover {
     background-color: #555;
 }
 

@@ -30,7 +30,7 @@
       background: #111;
       border: 2px solid white;
       display: block;
-      border-radius: 12px; /* rounded canvas */
+      border-radius: 12px;
     }
 
     .controls {
@@ -39,9 +39,10 @@
       gap: 15px;
       flex-wrap: wrap;
       justify-content: center;
+      align-items: center;
     }
 
-    select, .back-btn {
+    select, button, .back-btn {
       padding: 10px 18px;
       font-size: 16px;
       border: none;
@@ -55,7 +56,7 @@
       text-decoration: none;
     }
 
-    select:hover, .back-btn:hover {
+    select:hover, button:hover, .back-btn:hover {
       background-color: #555;
       transform: translateY(-2px);
     }
@@ -77,6 +78,7 @@
       <option value="normal">Normal</option>
       <option value="hard">Hard</option>
     </select>
+    <button id="startBtn">Start Game</button>
   </div>
 
   <canvas id="pong" width="800" height="500"></canvas>
@@ -92,6 +94,8 @@
     const ai = { x:canvas.width-20, y:canvas.height/2 -50, width:10, height:100, speed:3.5 };
 
     let playerScore = 0, aiScore = 0;
+    let aiSpeed = 3.5;
+    let running = false;
 
     function drawRect(x,y,w,h,color){ ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
     function drawBall(x,y,r,color){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.closePath(); ctx.fill(); }
@@ -99,6 +103,8 @@
     function resetBall(){ ball.x=canvas.width/2; ball.y=canvas.height/2; ball.dx*=-1; ball.dy=5*(Math.random()>0.5?1:-1); }
 
     function update(){
+      if(!running) return;
+
       ball.x += ball.dx;
       ball.y += ball.dy;
 
@@ -109,9 +115,7 @@
       if(player.y+player.height>canvas.height) player.y=canvas.height-player.height;
 
       // AI movement
-      let reactZone = 30; // default easy
-      if(aiSpeed>3.5) reactZone = 20; // for harder levels
-
+      let reactZone = (aiSpeed>3.5)?20:30;
       if(ai.y + ai.height/2 < ball.y - reactZone) ai.y += aiSpeed;
       else if(ai.y + ai.height/2 > ball.y + reactZone) ai.y -= aiSpeed;
 
@@ -132,9 +136,12 @@
     }
 
     function loop(){ update(); draw(); requestAnimationFrame(loop); }
-    loop();
 
-    let aiSpeed = 3.5; // default easy
+    document.getElementById("startBtn").addEventListener("click", ()=>{
+      running = true;
+      loop();
+    });
+
     document.getElementById("difficulty").addEventListener("change", e=>{
       const val = e.target.value;
       if(val==="easy"){ aiSpeed=3.5; }
@@ -152,4 +159,3 @@
   </script>
 </body>
 </html>
-

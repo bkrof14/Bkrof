@@ -10,27 +10,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const gridSize = 20;
     let snake = [];
     let food = {};
-    let direction = { x: 0, y: 0 };
-    let lastDirection = { x: 0, y: 0 };
+    let direction = { x: 1, y: 0 }; // Start moving right
+    let lastDirection = { x: 1, y: 0 };
     let score = 0;
     let speed = 100; // Default speed
     let gameInterval;
 
     function startGame() {
+        clearInterval(gameInterval);
         snake = [{ x: 10, y: 10 }];
         score = 0;
         scoreDisplay.textContent = score;
-        direction = { x: 0, y: 0 };
-        lastDirection = { x: 0, y: 0 };
+        direction = { x: 1, y: 0 };
+        lastDirection = { x: 1, y: 0 };
         generateFood();
         resetGameInterval();
     }
 
     function generateFood() {
-        food = {
-            x: Math.floor(Math.random() * (canvas.width / gridSize)),
-            y: Math.floor(Math.random() * (canvas.height / gridSize))
-        };
+        const x = Math.floor(Math.random() * (canvas.width / gridSize));
+        const y = Math.floor(Math.random() * (canvas.height / gridSize));
+        
+        // Ensure food doesn't spawn on the snake
+        for (const segment of snake) {
+            if (segment.x === x && segment.y === y) {
+                generateFood(); // Recurse if position is taken
+                return;
+            }
+        }
+        food = { x, y };
     }
 
     function draw() {
@@ -72,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             snake.pop();
         }
-        lastDirection = direction;
+        lastDirection = { ...direction };
     }
 
     function checkCollision(head) {
@@ -88,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.addEventListener('keydown', e => {
-        let newDirection = direction;
+        let newDirection = { ...direction };
         switch (e.key) {
             case 'ArrowUp':
                 if (lastDirection.y === 0) newDirection = { x: 0, y: -1 };

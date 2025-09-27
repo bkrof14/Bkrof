@@ -5,23 +5,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const slowBtn = document.getElementById('slow-btn');
     const mediumBtn = document.getElementById('medium-btn');
     const fastBtn = document.getElementById('fast-btn');
+    const restartBtn = document.getElementById('restart-btn');
 
     const gridSize = 20;
-    let snake = [{ x: 10, y: 10 }];
+    let snake = [];
     let food = {};
     let direction = { x: 0, y: 0 };
+    let lastDirection = { x: 0, y: 0 };
     let score = 0;
     let speed = 100; // Default speed
     let gameInterval;
-    let isGameOver = false;
 
     function startGame() {
-        isGameOver = false;
         snake = [{ x: 10, y: 10 }];
-        food = {};
-        direction = { x: 0, y: 0 };
         score = 0;
         scoreDisplay.textContent = score;
+        direction = { x: 0, y: 0 };
+        lastDirection = { x: 0, y: 0 };
         generateFood();
         resetGameInterval();
     }
@@ -34,30 +34,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function draw() {
+        // Clear canvas
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+        // Draw snake
         ctx.fillStyle = '#0f0';
         snake.forEach(segment => {
             ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 1, gridSize - 1);
         });
 
+        // Draw food
         ctx.fillStyle = '#f00';
         ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
     }
 
     function update() {
-        if (isGameOver) return;
-
         const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
 
-        // Check for game over conditions
+        // Game over conditions
         if (
             head.x < 0 || head.x >= canvas.width / gridSize ||
             head.y < 0 || head.y >= canvas.height / gridSize ||
             checkCollision(head)
         ) {
-            isGameOver = true;
             clearInterval(gameInterval);
             alert(`Game Over! Your score was ${score}.`);
             return;
@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             snake.pop();
         }
+        lastDirection = direction;
     }
 
     function checkCollision(head) {
@@ -87,24 +88,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.addEventListener('keydown', e => {
-        const newDirection = { x: direction.x, y: direction.y };
+        let newDirection = direction;
         switch (e.key) {
             case 'ArrowUp':
-                if (direction.y === 0) newDirection.x = 0, newDirection.y = -1;
+                if (lastDirection.y === 0) newDirection = { x: 0, y: -1 };
                 break;
             case 'ArrowDown':
-                if (direction.y === 0) newDirection.x = 0, newDirection.y = 1;
+                if (lastDirection.y === 0) newDirection = { x: 0, y: 1 };
                 break;
             case 'ArrowLeft':
-                if (direction.x === 0) newDirection.x = -1, newDirection.y = 0;
+                if (lastDirection.x === 0) newDirection = { x: -1, y: 0 };
                 break;
             case 'ArrowRight':
-                if (direction.x === 0) newDirection.x = 1, newDirection.y = 0;
+                if (lastDirection.x === 0) newDirection = { x: 1, y: 0 };
                 break;
         }
-        if (newDirection.x !== direction.x || newDirection.y !== direction.y) {
-            direction = newDirection;
-        }
+        direction = newDirection;
     });
 
     // Speed selectors
@@ -120,6 +119,9 @@ document.addEventListener('DOMContentLoaded', () => {
         speed = 50;
         resetGameInterval();
     });
+
+    // Restart button
+    restartBtn.addEventListener('click', startGame);
 
     // Start the game initially
     startGame();

@@ -3,10 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us</title>
+    <title>My Games Hub</title>
+    <style>
+        body {
+            background-color: #000; /* Black background */
+            color: #fff; /* White text */
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 30px;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 800px;
+            margin: auto;
+        }
+
+        .btn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-color: #333;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            font-size: 1.2em;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            background-color: #555;
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body>
-    <h1>About Our Website</h1>
-    <p>This is the content for the about page.</p>
+    <div class="container">
+        <h1>Welcome to the Games Hub</h1>
+        <div class="btn-grid">
+            <!-- Example Button 1 -->
+            <a href="https://bkrof.dpdns.org/game-name-1" class="btn">Game 1</a>
+            
+            <!-- Example Button 2 -->
+            <a href="https://bkrof.dpdns.org/game-name-2" class="btn">Game 2</a>
+
+            <!-- Example Button 3 -->
+            <a href="https://bkrof.dpdns.org/game-name-3" class="btn">Game 3</a>
+            
+            <!-- Example Button 4 -->
+            <a href="https://bkrof.dpdns.org/game-name-4" class="btn">Game 4</a>
+            
+            <!-- Add more buttons here -->
+            <a href="https://bkrof.dpdns.org/more-games" class="btn">More Games</a>
+            
+            <!-- Button to return to the main hub -->
+            <a href="/" class="btn">Back to Main Hub</a>
+        </div>
+    </div>
 </body>
 </html>

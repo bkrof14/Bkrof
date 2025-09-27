@@ -94,7 +94,7 @@
     const ai = { x:canvas.width-20, y:canvas.height/2 -50, width:10, height:100 };
 
     let playerScore = 0, aiScore = 0;
-    let aiSpeed = 2, aiReactZone = 60; // default easy
+    let aiSpeed = 2, aiReactZone = 80; // default easy: slower and delayed reaction
     let running = false;
 
     function drawRect(x,y,w,h,color){ ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
@@ -147,8 +147,8 @@
 
     document.getElementById("difficulty").addEventListener("change", e=>{
       const val = e.target.value;
-      if(val === "easy"){ aiSpeed=2; aiReactZone=60; }
-      else if(val === "normal"){ aiSpeed=4; aiReactZone=30; }
+      if(val === "easy"){ aiSpeed=2; aiReactZone=80; }
+      else if(val === "normal"){ aiSpeed=3.5; aiReactZone=50; }
       else if(val === "hard"){ aiSpeed=6; aiReactZone=15; }
     });
 

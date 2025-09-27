@@ -10,10 +10,20 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       color: white;
       font-family: Arial, sans-serif;
       padding-top: 20px;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+
+    #scoreDisplay {
+      font-size: 1.5em;
+      margin-bottom: 15px;
     }
 
     canvas {
@@ -23,68 +33,95 @@
       border-radius: 12px; /* rounded canvas */
     }
 
-    .back-btn {
-      margin-top: 20px;
-      padding: 12px 24px;
-      background-color: #333;
-      color: #fff;
-      text-decoration: none;
-      border-radius: 12px; /* curved button */
-      font-weight: bold;
-      transition: background-color 0.3s, transform 0.2s;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    .controls {
+      margin-top: 15px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
-    .back-btn:hover {
+    select, .back-btn {
+      padding: 10px 18px;
+      font-size: 16px;
+      border: none;
+      border-radius: 12px;
+      background-color: #333;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      text-decoration: none;
+    }
+
+    select:hover, .back-btn:hover {
       background-color: #555;
       transform: translateY(-2px);
+    }
+
+    .back-btn {
+      margin-top: 20px;
+      display: inline-block;
     }
   </style>
 </head>
 <body>
+  <h1>Pong Game</h1>
+  <div id="scoreDisplay">Player: 0 | AI: 0</div>
+  
+  <div class="controls">
+    <label for="difficulty">Difficulty:</label>
+    <select id="difficulty">
+      <option value="easy" selected>Easy</option>
+      <option value="normal">Normal</option>
+      <option value="hard">Hard</option>
+    </select>
+  </div>
+
   <canvas id="pong" width="800" height="500"></canvas>
+
   <a href="/games" class="back-btn">⬅ Back to Games</a>
 
   <script>
     const canvas = document.getElementById("pong");
     const ctx = canvas.getContext("2d");
 
-    const ball = {
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      radius: 10,
-      speed: 5,
-      dx: 5,
-      dy: 5
-    };
+    const ball = { x: canvas.width/2, y: canvas.height/2, radius: 10, dx: 5, dy: 5 };
+    const player = { x:10, y:canvas.height/2 -50, width:10, height:100, dy:0, speed:8 };
+    const ai = { x:canvas.width-20, y:canvas.height/2 -50, width:10, height:100, speed:3.5 };
 
-    const player = { x: 10, y: canvas.height/2 - 50, width: 10, height: 100, dy: 0, speed: 8 };
-    const ai = { x: canvas.width - 20, y: canvas.height/2 - 50, width: 10, height: 100, speed: 3.5 }; // slower AI
+    let playerScore = 0, aiScore = 0;
 
-    function drawRect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h);}
-    function drawBall(x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.closePath();ctx.fill();}
-    function resetBall(){ball.x=canvas.width/2; ball.y=canvas.height/2; ball.dx*=-1; ball.dy=5*(Math.random()>0.5?1:-1);}
+    function drawRect(x,y,w,h,color){ ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
+    function drawBall(x,y,r,color){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.closePath(); ctx.fill(); }
+    function updateScore(){ document.getElementById("scoreDisplay").innerText = `Player: ${playerScore} | AI: ${aiScore}`; }
+    function resetBall(){ ball.x=canvas.width/2; ball.y=canvas.height/2; ball.dx*=-1; ball.dy=5*(Math.random()>0.5?1:-1); }
 
     function update(){
       ball.x += ball.dx;
       ball.y += ball.dy;
 
-      if(ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) ball.dy *= -1;
+      if(ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) ball.dy*=-1;
 
       player.y += player.dy;
       if(player.y<0) player.y=0;
       if(player.y+player.height>canvas.height) player.y=canvas.height-player.height;
 
-      // Easier AI movement
-      if(ai.y + ai.height/2 < ball.y - 30) ai.y += ai.speed;
-      else if(ai.y + ai.height/2 > ball.y + 30) ai.y -= ai.speed;
+      // AI movement
+      let reactZone = 30; // default easy
+      if(aiSpeed>3.5) reactZone = 20; // for harder levels
+
+      if(ai.y + ai.height/2 < ball.y - reactZone) ai.y += aiSpeed;
+      else if(ai.y + ai.height/2 > ball.y + reactZone) ai.y -= aiSpeed;
 
       // Collisions
       if(ball.x - ball.radius < player.x + player.width && ball.y > player.y && ball.y < player.y + player.height) ball.dx*=-1;
       if(ball.x + ball.radius > ai.x && ball.y > ai.y && ball.y < ai.y + ai.height) ball.dx*=-1;
 
       // Score reset
-      if(ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) resetBall();
+      if(ball.x - ball.radius < 0){ aiScore++; resetBall(); updateScore(); }
+      if(ball.x + ball.radius > canvas.width){ playerScore++; resetBall(); updateScore(); }
     }
 
     function draw(){
@@ -94,8 +131,16 @@
       drawBall(ball.x,ball.y,ball.radius,"white");
     }
 
-    function loop(){update(); draw(); requestAnimationFrame(loop);}
+    function loop(){ update(); draw(); requestAnimationFrame(loop); }
     loop();
+
+    let aiSpeed = 3.5; // default easy
+    document.getElementById("difficulty").addEventListener("change", e=>{
+      const val = e.target.value;
+      if(val==="easy"){ aiSpeed=3.5; }
+      else if(val==="normal"){ aiSpeed=5; }
+      else if(val==="hard"){ aiSpeed=7; }
+    });
 
     document.addEventListener("keydown", e => {
       if(e.key==="ArrowUp") player.dy=-player.speed;
@@ -107,3 +152,4 @@
   </script>
 </body>
 </html>
+

@@ -7,92 +7,153 @@
     html, body {
       height: 100%;
       margin: 0;
-    }
-    body {
+      background: black;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      color: white;
+      font-family: Arial, sans-serif;
     }
     canvas {
-      border: 1px solid white;
+      border: 2px solid white;
+      background: #000;
+    }
+    .controls {
+      margin-bottom: 10px;
+    }
+    select, button {
+      padding: 5px 10px;
+      font-size: 16px;
+      margin-left: 5px;
     }
   </style>
-  <script src="theme.js"></script>
 </head>
 <body>
-  <canvas width="400" height="400" id="game"></canvas>
+  <div class="controls">
+    <label for="speed">Speed:</label>
+    <select id="speed">
+      <option value="8">Slow</option>
+      <option value="12" selected>Normal</option>
+      <option value="18">Fast</option>
+      <option value="25">Extreme</option>
+    </select>
+    <button id="startBtn">Start Game</button>
+  </div>
+
+  <canvas width="600" height="600" id="game"></canvas>
+
   <script>
-    var canvas = document.getElementById('game');
-    var context = canvas.getContext('2d');
+    const canvas = document.getElementById("game");
+    const context = canvas.getContext("2d");
+    const grid = 20;
+    let count = 0;
+    let speed = 12; // default fps
 
-    var grid = 16;
-    var count = 0;
+    let snake, apple, running;
 
-    // ✅ read speed from URL
-    const params = new URLSearchParams(window.location.search);
-    let speed = parseInt(params.get("speed")) || 10;
-    let speedDivisor = Math.max(1, Math.floor(20 / speed));
-
-    var snake = { x: 160, y: 160, dx: grid, dy: 0, cells: [], maxCells: 4 };
-    var apple = { x: 320, y: 320 };
+    function resetGame() {
+      snake = {
+        x: 200,
+        y: 200,
+        dx: grid,
+        dy: 0,
+        cells: [],
+        maxCells: 4
+      };
+      apple = {
+        x: getRandomInt(0, canvas.width / grid) * grid,
+        y: getRandomInt(0, canvas.height / grid) * grid
+      };
+      running = true;
+    }
 
     function getRandomInt(min, max) {
       return Math.floor(Math.random() * (max - min)) + min;
     }
 
     function loop() {
+      if (!running) return;
       requestAnimationFrame(loop);
 
-      if (++count < speedDivisor) return;
+      if (++count < (60 / speed)) {
+        return;
+      }
       count = 0;
 
-      context.clearRect(0,0,canvas.width,canvas.height);
+      context.clearRect(0, 0, canvas.width, canvas.height);
 
       snake.x += snake.dx;
       snake.y += snake.dy;
 
-      if (snake.x < 0) snake.x = canvas.width - grid;
-      else if (snake.x >= canvas.width) snake.x = 0;
-      if (snake.y < 0) snake.y = canvas.height - grid;
-      else if (snake.y >= canvas.height) snake.y = 0;
+      // 🔥 check wall collision
+      if (
+        snake.x < 0 ||
+        snake.x >= canvas.width ||
+        snake.y < 0 ||
+        snake.y >= canvas.height
+      ) {
+        running = false;
+        alert("Game Over! You hit the wall.");
+        return;
+      }
 
-      snake.cells.unshift({x: snake.x, y: snake.y});
-      if (snake.cells.length > snake.maxCells) snake.cells.pop();
+      // add head
+      snake.cells.unshift({ x: snake.x, y: snake.y });
 
-      context.fillStyle = 'red';
-      context.fillRect(apple.x, apple.y, grid-1, grid-1);
+      if (snake.cells.length > snake.maxCells) {
+        snake.cells.pop();
+      }
 
-      context.fillStyle = 'green';
-      snake.cells.forEach(function(cell, index) {
-        context.fillRect(cell.x, cell.y, grid-1, grid-1);
+      // draw apple
+      context.fillStyle = "red";
+      context.fillRect(apple.x, apple.y, grid - 1, grid - 1);
 
+      // draw snake
+      context.fillStyle = "lime";
+      snake.cells.forEach(function (cell, index) {
+        context.fillRect(cell.x, cell.y, grid - 1, grid - 1);
+
+        // ate apple
         if (cell.x === apple.x && cell.y === apple.y) {
           snake.maxCells++;
-          apple.x = getRandomInt(0, 25) * grid;
-          apple.y = getRandomInt(0, 25) * grid;
+          apple.x = getRandomInt(0, canvas.width / grid) * grid;
+          apple.y = getRandomInt(0, canvas.height / grid) * grid;
         }
 
-        for (var i = index + 1; i < snake.cells.length; i++) {
+        // check self collision
+        for (let i = index + 1; i < snake.cells.length; i++) {
           if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
-            snake.x = 160; snake.y = 160;
-            snake.cells = [];
-            snake.maxCells = 4;
-            snake.dx = grid; snake.dy = 0;
-            apple.x = getRandomInt(0, 25) * grid;
-            apple.y = getRandomInt(0, 25) * grid;
+            running = false;
+            alert("Game Over! You ran into yourself.");
+            return;
           }
         }
       });
     }
 
-    document.addEventListener('keydown', function(e) {
-      if (e.which === 37 && snake.dx === 0) { snake.dx = -grid; snake.dy = 0; }
-      else if (e.which === 38 && snake.dy === 0) { snake.dy = -grid; snake.dx = 0; }
-      else if (e.which === 39 && snake.dx === 0) { snake.dx = grid; snake.dy = 0; }
-      else if (e.which === 40 && snake.dy === 0) { snake.dy = grid; snake.dx = 0; }
+    // controls
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft" && snake.dx === 0) {
+        snake.dx = -grid;
+        snake.dy = 0;
+      } else if (e.key === "ArrowUp" && snake.dy === 0) {
+        snake.dy = -grid;
+        snake.dx = 0;
+      } else if (e.key === "ArrowRight" && snake.dx === 0) {
+        snake.dx = grid;
+        snake.dy = 0;
+      } else if (e.key === "ArrowDown" && snake.dy === 0) {
+        snake.dy = grid;
+        snake.dx = 0;
+      }
     });
 
-    requestAnimationFrame(loop);
+    document.getElementById("startBtn").addEventListener("click", () => {
+      speed = parseInt(document.getElementById("speed").value, 10);
+      resetGame();
+      requestAnimationFrame(loop);
+    });
   </script>
 </body>
 </html>

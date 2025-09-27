@@ -8,18 +8,19 @@
       margin: 0;
       background: black;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
-      height: 100vh;
+      justify-content: center;
       color: white;
       font-family: Arial, sans-serif;
-      flex-direction: column;
+      padding-top: 20px;
     }
 
     canvas {
       background: #111;
       border: 2px solid white;
       display: block;
+      border-radius: 12px; /* rounded canvas */
     }
 
     .back-btn {
@@ -28,7 +29,7 @@
       background-color: #333;
       color: #fff;
       text-decoration: none;
-      border-radius: 12px; /* Curved button */
+      border-radius: 12px; /* curved button */
       font-weight: bold;
       transition: background-color 0.3s, transform 0.2s;
       box-shadow: 0 4px 8px rgba(0,0,0,0.4);
@@ -48,7 +49,6 @@
     const canvas = document.getElementById("pong");
     const ctx = canvas.getContext("2d");
 
-    // Ball
     const ball = {
       x: canvas.width / 2,
       y: canvas.height / 2,
@@ -58,119 +58,52 @@
       dy: 5
     };
 
-    // Player paddle
-    const player = {
-      x: 10,
-      y: canvas.height / 2 - 50,
-      width: 10,
-      height: 100,
-      dy: 0,
-      speed: 8
-    };
+    const player = { x: 10, y: canvas.height/2 - 50, width: 10, height: 100, dy: 0, speed: 8 };
+    const ai = { x: canvas.width - 20, y: canvas.height/2 - 50, width: 10, height: 100, speed: 3.5 }; // slower AI
 
-    // AI paddle
-    const ai = {
-      x: canvas.width - 20,
-      y: canvas.height / 2 - 50,
-      width: 10,
-      height: 100,
-      speed: 4 // slower than player to make it easier
-    };
+    function drawRect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h);}
+    function drawBall(x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.closePath();ctx.fill();}
+    function resetBall(){ball.x=canvas.width/2; ball.y=canvas.height/2; ball.dx*=-1; ball.dy=5*(Math.random()>0.5?1:-1);}
 
-    // Draw rect
-    function drawRect(x, y, w, h, color) {
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, w, h);
-    }
-
-    // Draw ball
-    function drawBall(x, y, r, color) {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // Reset ball
-    function resetBall() {
-      ball.x = canvas.width / 2;
-      ball.y = canvas.height / 2;
-      ball.dx *= -1; // serve to opposite side
-      ball.dy = 5 * (Math.random() > 0.5 ? 1 : -1);
-    }
-
-    // Update
-    function update() {
+    function update(){
       ball.x += ball.dx;
       ball.y += ball.dy;
 
-      // Bounce top/bottom
-      if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
-        ball.dy *= -1;
-      }
+      if(ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) ball.dy *= -1;
 
-      // Move player
       player.y += player.dy;
-      if (player.y < 0) player.y = 0;
-      if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+      if(player.y<0) player.y=0;
+      if(player.y+player.height>canvas.height) player.y=canvas.height-player.height;
 
-      // AI movement (laggy on purpose)
-      if (ai.y + ai.height / 2 < ball.y - 20) {
-        ai.y += ai.speed;
-      } else if (ai.y + ai.height / 2 > ball.y + 20) {
-        ai.y -= ai.speed;
-      }
+      // Easier AI movement
+      if(ai.y + ai.height/2 < ball.y - 30) ai.y += ai.speed;
+      else if(ai.y + ai.height/2 > ball.y + 30) ai.y -= ai.speed;
 
       // Collisions
-      if (ball.x - ball.radius < player.x + player.width &&
-          ball.y > player.y &&
-          ball.y < player.y + player.height) {
-        ball.dx *= -1;
-      }
+      if(ball.x - ball.radius < player.x + player.width && ball.y > player.y && ball.y < player.y + player.height) ball.dx*=-1;
+      if(ball.x + ball.radius > ai.x && ball.y > ai.y && ball.y < ai.y + ai.height) ball.dx*=-1;
 
-      if (ball.x + ball.radius > ai.x &&
-          ball.y > ai.y &&
-          ball.y < ai.y + ai.height) {
-        ball.dx *= -1;
-      }
-
-      // Out of bounds (score reset)
-      if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
-        resetBall();
-      }
+      // Score reset
+      if(ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) resetBall();
     }
 
-    // Draw everything
-    function draw() {
-      drawRect(0, 0, canvas.width, canvas.height, "#111");
-      drawRect(player.x, player.y, player.width, player.height, "white");
-      drawRect(ai.x, ai.y, ai.width, ai.height, "white");
-      drawBall(ball.x, ball.y, ball.radius, "white");
+    function draw(){
+      drawRect(0,0,canvas.width,canvas.height,"#111");
+      drawRect(player.x,player.y,player.width,player.height,"white");
+      drawRect(ai.x,ai.y,ai.width,ai.height,"white");
+      drawBall(ball.x,ball.y,ball.radius,"white");
     }
 
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    // Controls
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowUp") {
-        player.dy = -player.speed;
-      } else if (e.key === "ArrowDown") {
-        player.dy = player.speed;
-      }
-    });
-
-    document.addEventListener("keyup", (e) => {
-      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-        player.dy = 0;
-      }
-    });
-
+    function loop(){update(); draw(); requestAnimationFrame(loop);}
     loop();
+
+    document.addEventListener("keydown", e => {
+      if(e.key==="ArrowUp") player.dy=-player.speed;
+      else if(e.key==="ArrowDown") player.dy=player.speed;
+    });
+    document.addEventListener("keyup", e => {
+      if(e.key==="ArrowUp"||e.key==="ArrowDown") player.dy=0;
+    });
   </script>
 </body>
 </html>

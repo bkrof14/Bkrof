@@ -1,76 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Games Hub</title>
-    <style>
-        body {
-            background-color: #000; /* Black background */
-            color: #fff; /* White text */
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            text-align: center;
-        }
+  <meta charset="UTF-8">
+  <title>Snake</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: black;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
 
-        .container {
-            padding: 20px;
-        }
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+    }
 
-        h1 {
-            font-size: 3em;
-            margin-bottom: 30px;
-        }
+    canvas {
+      border: 2px solid white;
+      background: #000;
+      border-radius: 12px; /* rounded game area */
+      margin-top: 20px;
+      box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+    }
 
-        .btn-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            max-width: 800px;
-            margin: auto;
-        }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
 
-        .btn {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            background-color: #333;
-            color: #fff;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            font-size: 1.2em;
-            font-weight: bold;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
+    .control-box {
+      background-color: #222;
+      padding: 12px 18px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-        .btn:hover {
-            background-color: #555;
-            transform: translateY(-2px);
-        }
-    </style>
+    label {
+      font-weight: bold;
+    }
+
+    select, button {
+      padding: 10px 18px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background-color: #333;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    select:hover, button:hover {
+      background-color: #555;
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome to the Games Hub</h1>
-        <div class="btn-grid">
-            <!-- New Snake Game Button -->
-            <a href="https://bkrof.dpdns.org/games/snake" class="btn">Snake Game</a>
-            
-            <!-- Other Example Buttons -->
-            <a href="https://bkrof.dpdns.org/game-name-1" class="btn">Game 1</a>
-            <a href="https://bkrof.dpdns.org/game-name-2" class="btn">Game 2</a>
-            <a href="https://bkrof.dpdns.org/game-name-3" class="btn">Game 3</a>
-            <a href="https://bkrof.dpdns.org/more-games" class="btn">More Games</a>
-            
-            <!-- Button to return to the main hub -->
-            <a href="/" class="btn">Back to Main Hub</a>
-        </div>
+  <h1>Snake Game</h1>
+  <div class="controls">
+    <div class="control-box">
+      <label for="speed">Speed:</label>
+      <select id="speed">
+        <option value="8">Slow</option>
+        <option value="12" selected>Normal</option>
+        <option value="18">Fast</option>
+        <option value="25">Extreme</option>
+      </select>
     </div>
+    <button id="startBtn">Start Game</button>
+  </div>
+
+  <canvas width="600" height="600" id="game"></canvas>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const context = canvas.getContext("2d");
+    const grid = 20;
+    let count = 0;
+    let speed = 12; // default fps
+
+    let snake, apple, running;
+
+    function resetGame() {
+      snake = {
+        x: 200,
+        y: 200,
+        dx: grid,
+        dy: 0,
+        cells: [],
+        maxCells: 4
+      };
+      apple = {
+        x: getRandomInt(0, canvas.width / grid) * grid,
+        y: getRandomInt(0, canvas.height / grid) * grid
+      };
+      running = true;
+    }
+
+    function getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min)) + min;
+    }
+
+    function loop() {
+      if (!running) return;
+      requestAnimationFrame(loop);
+
+      if (++count < (60 / speed)) {
+        return;
+      }
+      count = 0;
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      snake.x += snake.dx;
+      snake.y += snake.dy;
+
+      // 🔥 check wall collision
+      if (
+        snake.x < 0 ||
+        snake.x >= canvas.width ||
+        snake.y < 0 ||
+        snake.y >= canvas.height
+      ) {
+        running = false;
+        alert("Game Over! You hit the wall.");
+        return;
+      }
+
+      // add head
+      snake.cells.unshift({ x: snake.x, y: snake.y });
+
+      if (snake.cells.length > snake.maxCells) {
+        snake.cells.pop();
+      }
+
+      // draw apple
+      context.fillStyle = "red";
+      context.beginPath();
+      context.arc(apple.x + grid/2, apple.y + grid/2, grid/2 - 2, 0, Math.PI * 2);
+      context.fill();
+
+      // draw snake (rounded body)
+      context.fillStyle = "lime";
+      snake.cells.forEach(function (cell, index) {
+        context.beginPath();
+        context.arc(cell.x + grid/2, cell.y + grid/2, grid/2 - 2, 0, Math.PI * 2);
+        context.fill();
+
+        // ate apple
+        if (cell.x === apple.x && cell.y === apple.y) {
+          snake.maxCells++;
+          apple.x = getRandomInt(0, canvas.width / grid) * grid;
+          apple.y = getRandomInt(0, canvas.height / grid) * grid;
+        }
+
+        // check self collision
+        for (let i = index + 1; i < snake.cells.length; i++) {
+          if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
+            running = false;
+            alert("Game Over! You ran into yourself.");
+            return;
+          }
+        }
+      });
+    }
+
+    // controls
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft" && snake.dx === 0) {
+        snake.dx = -grid;
+        snake.dy = 0;
+      } else if (e.key === "ArrowUp" && snake.dy === 0) {
+        snake.dy = -grid;
+        snake.dx = 0;
+      } else if (e.key === "ArrowRight" && snake.dx === 0) {
+        snake.dx = grid;
+        snake.dy = 0;
+      } else if (e.key === "ArrowDown" && snake.dy === 0) {
+        snake.dy = grid;
+        snake.dx = 0;
+      }
+    });
+
+    document.getElementById("startBtn").addEventListener("click", () => {
+      speed = parseInt(document.getElementById("speed").value, 10);
+      resetGame();
+      requestAnimationFrame(loop);
+    });
+  </script>
 </body>
 </html>
